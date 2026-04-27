@@ -37,8 +37,10 @@ sudo usermod -aG sudo student
 
 create_user teacher 12345678
 sudo usermod -aG sudo teacher
+sudo chage -d 0 teacher
 
 create_user operator 12345678
+sudo chage -d 0 operator
 
 if id "app" &>/dev/null; then
     echo "Користувач app вже існує."
