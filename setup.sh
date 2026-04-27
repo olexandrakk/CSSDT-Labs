@@ -22,11 +22,18 @@ create_user() {
     if id "$1" &>/dev/null; then
         echo "Користувач $1 вже існує."
     else
-        sudo useradd -m -s /bin/bash "$1"
+        if getent group "$1" &>/dev/null; then
+            sudo useradd -m -s /bin/bash -g "$1" "$1"
+        else
+            sudo useradd -m -s /bin/bash "$1"
+        fi
         echo "$1:$2" | sudo chpasswd
         echo "Користувача $1 створено."
     fi
 }
+
+create_user student 12345678
+sudo usermod -aG sudo student
 
 create_user teacher 12345678
 sudo usermod -aG sudo teacher
@@ -130,4 +137,4 @@ if [ "$DEFAULT_USER" != "student" ] && [ "$DEFAULT_USER" != "teacher" ] && [ "$D
     sudo usermod -L "$DEFAULT_USER" || true
 fi
 
-echo "=== Встановлення успішно завершено! ==="
+echo "Встановлення успішно завершено!"
