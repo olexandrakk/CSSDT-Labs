@@ -1,0 +1,12 @@
+{
+  "app": {
+    "port": 3000
+  },
+  "db": {
+    "user": "student",
+    "host": "127.0.0.1",
+    "database": "taskdb",
+    "password": "your_password",
+    "port": 5432
+  }
+}
