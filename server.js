@@ -118,10 +118,18 @@ app.post('/tasks/:id/done', async (req, res) => {
 const PORT = config.app.port || 3000;
 
 if (require.main === module) {
-    app.listen(PORT, async () => {
-        console.log(`Сервер запущено на http://localhost:${PORT}`);
-        await runMigrations();
-    });
+    if (process.env.LISTEN_FDS === '1') {
+        const fd = 3;
+        app.listen({ fd }, async () => {
+            console.log('Сервер запущено через Systemd Socket Activation');
+            await runMigrations();
+        });
+    } else {
+        app.listen(PORT, async () => {
+            console.log(`Сервер запущено на http://localhost:${PORT}`);
+            await runMigrations();
+        });
+    }
 }
 
 module.exports = app;

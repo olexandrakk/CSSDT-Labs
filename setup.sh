@@ -74,11 +74,24 @@ sudo npm install
 sudo chown -R app:app /opt/mywebapp
 sudo chown -R app:app /etc/mywebapp
 
-echo "[5/8] Налаштування Systemd..."
+echo "[5/8] Налаштування Systemd Socket Activation..."
+
+sudo bash -c 'cat > /etc/systemd/system/mywebapp.socket <<EOF
+[Unit]
+Description=My Web App Socket
+
+[Socket]
+ListenStream=3000
+
+[Install]
+WantedBy=sockets.target
+EOF'
+
 sudo bash -c 'cat > /etc/systemd/system/mywebapp.service <<EOF
 [Unit]
 Description=My Web App (Task Tracker)
-After=network.target postgresql.service
+Requires=mywebapp.socket
+After=network.target postgresql.service mywebapp.socket
 
 [Service]
 Type=simple
@@ -87,14 +100,15 @@ WorkingDirectory=/opt/mywebapp
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
 EOF'
 
 sudo systemctl daemon-reload
-sudo systemctl enable mywebapp
-sudo systemctl restart mywebapp
+
+sudo systemctl stop mywebapp || true
+sudo systemctl disable mywebapp || true
+
+sudo systemctl enable mywebapp.socket
+sudo systemctl start mywebapp.socket
 
 echo "[6/8] Налаштування Nginx..."
 sudo bash -c 'cat > /etc/nginx/sites-available/mywebapp <<EOF
