@@ -50,8 +50,7 @@ else
 fi
 
 echo "Налаштування sudo-прав для operator..."
-echo "operator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start mywebapp, /usr/bin/systemctl stop mywebapp, /usr/bin/systemctl restart mywebapp, /usr/bin/systemctl status mywebapp, /usr/bin/systemctl reload nginx" | sudo tee /etc/sudoers.d/operator > /dev/null
-sudo chmod 0440 /etc/sudoers.d/operator
+echo "operator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start mywebapp.service, /usr/bin/systemctl stop mywebapp.service, /usr/bin/systemctl restart mywebapp.service, /usr/bin/systemctl status mywebapp.service, /usr/sbin/nginx -s reload" > /etc/sudoers.d/operatorsudo chmod 0440 /etc/sudoers.d/operator
 
 
 echo "[3/8] Налаштування бази даних PostgreSQL..."
