@@ -1,82 +1,155 @@
-echo "Починаємо налаштування сервера..."
+set -e
 
-echo "Оновлення системи..."
-sudo apt update && sudo apt upgrade -y
+echo "=== Починаємо автоматичне розгортання Task Tracker ==="
 
-echo "Встановлення Nginx та бази даних..."
-sudo apt install -y nginx postgresql postgresql-contrib
+echo "[1/8] Оновлення системи та встановлення системних пакетів..."
+sudo apt-get update
+sudo apt-get install -y curl dirmngr apt-transport-https lsb-release ca-certificates nginx postgresql postgresql-contrib
 
-echo "Встановлення Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+if ! command -v node > /dev/null; then
+    echo "Встановлення Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+else
+    echo "Node.js вже встановлено."
+fi
 
-echo "Базові програми встановлено!"
+echo "Системні пакети успішно встановлено!"
 
-echo "Налаштування бази даних PostgreSQL..."
+echo "[2/8] Налаштування користувачів системи..."
 
-sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'your_password';" || true
-sudo -u postgres psql -c "ALTER USER postgres WITH SUPERUSER;"
-sudo -u postgres psql -c "CREATE DATABASE taskdb OWNER postgres;" || true
+create_user() {
+    if id "$1" &>/dev/null; then
+        echo "Користувач $1 вже існує."
+    else
+        if getent group "$1" &>/dev/null; then
+            sudo useradd -m -s /bin/bash -g "$1" "$1"
+        else
+            sudo useradd -m -s /bin/bash "$1"
+        fi
+        echo "$1:$2" | sudo chpasswd
+        echo "Користувача $1 створено."
+    fi
+}
 
-sudo -u postgres psql -d taskdb -f "$PWD/init.sql"
+create_user student 12345678
+sudo usermod -aG sudo student
 
-echo "Встановлення залежностей проєкту (npm install)..."
-npm install
+create_user teacher 12345678
+sudo usermod -aG sudo teacher
+sudo chage -d 0 teacher
 
-echo "Налаштування Nginx..."
+create_user operator 12345678
+sudo chage -d 0 operator
 
-sudo bash -c 'cat > /etc/nginx/sites-available/tasktracker <<EOF
+if id "app" &>/dev/null; then
+    echo "Користувач app вже існує."
+else
+    sudo useradd -r -s /bin/false app
+    echo "Системного користувача app створено."
+fi
+
+echo "Налаштування sudo-прав для operator..."
+echo "operator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start mywebapp.service, /usr/bin/systemctl stop mywebapp.service, /usr/bin/systemctl restart mywebapp.service, /usr/bin/systemctl status mywebapp.service, /usr/sbin/nginx -s reload" > /etc/sudoers.d/operatorsudo chmod 0440 /etc/sudoers.d/operator
+
+
+echo "[3/8] Налаштування бази даних PostgreSQL..."
+
+sudo -u postgres psql -c "CREATE USER student WITH PASSWORD '12345678';" || true
+sudo -u postgres psql -c "CREATE DATABASE lab1db OWNER student;" || true
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE lab1db TO student;" || true
+
+echo "База даних налаштована."
+
+echo "[4/8] Розгортання файлів застосунку..."
+
+sudo mkdir -p /opt/mywebapp
+sudo mkdir -p /etc/mywebapp
+
+sudo cp -r ./* /opt/mywebapp/
+sudo cp ./config.json /etc/mywebapp/config.json
+
+cd /opt/mywebapp
+sudo npm install
+
+sudo chown -R app:app /opt/mywebapp
+sudo chown -R app:app /etc/mywebapp
+
+echo "[5/8] Налаштування Systemd Socket Activation..."
+
+sudo bash -c 'cat > /etc/systemd/system/mywebapp.socket <<EOF
+[Unit]
+Description=My Web App Socket
+
+[Socket]
+ListenStream=3000
+
+[Install]
+WantedBy=sockets.target
+EOF'
+
+sudo bash -c 'cat > /etc/systemd/system/mywebapp.service <<EOF
+[Unit]
+Description=My Web App (Task Tracker)
+Requires=mywebapp.socket
+After=network.target postgresql.service mywebapp.socket
+
+[Service]
+Type=simple
+User=app
+WorkingDirectory=/opt/mywebapp
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+Environment=NODE_ENV=production
+EOF'
+
+sudo systemctl daemon-reload
+
+sudo systemctl stop mywebapp || true
+sudo systemctl disable mywebapp || true
+
+sudo systemctl enable mywebapp.socket
+sudo systemctl start mywebapp.socket
+
+echo "[6/8] Налаштування Nginx..."
+sudo bash -c 'cat > /etc/nginx/sites-available/mywebapp <<EOF
 server {
     listen 80;
     server_name _;
 
+    # Записуємо логи (вимога лаби)
+    access_log /var/log/nginx/mywebapp_access.log;
+    error_log /var/log/nginx/mywebapp_error.log;
+
+    # Дозволяємо тільки кореневий ендпоінт і бізнес-логіку (tasks)
+    location = / {
+        proxy_pass http://127.0.0.1:3000;
+    }
+
+    location /tasks {
+        proxy_pass http://127.0.0.1:3000;
+    }
+
+    # Блокуємо ззовні ендпоінти health та інші можливі шляхи
     location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
+        return 404;
     }
 }
 EOF'
 
-sudo ln -sf /etc/nginx/sites-available/tasktracker /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/mywebapp /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo systemctl restart nginx
 
-echo "Встановлення та налаштування завершено успішно!"# 4. Налаштування PostgreSQL
-echo "Налаштування бази даних PostgreSQL..."
+echo "[7/8] Створення файлу gradebook..."
+echo "7" | sudo tee /home/student/gradebook > /dev/null
+sudo chown student:student /home/student/gradebook
 
-sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'PesPatron';" || true
-sudo -u postgres psql -c "ALTER USER postgres WITH SUPERUSER;"
-sudo -u postgres psql -c "CREATE DATABASE taskdb OWNER postgres;" || true
+echo "[8/8] Блокування дефолтного користувача..."
+DEFAULT_USER=$(logname)
+if [ "$DEFAULT_USER" != "student" ] && [ "$DEFAULT_USER" != "teacher" ] && [ "$DEFAULT_USER" != "operator" ]; then
+    echo "Блокуємо $DEFAULT_USER..."
+    sudo usermod -L "$DEFAULT_USER" || true
+fi
 
-sudo -u postgres psql -d taskdb -f "$PWD/init.sql"
-
-echo "Встановлення залежностей проєкту (npm install)..."
-npm install
-
-echo "Налаштування Nginx..."
-
-sudo bash -c 'cat > /etc/nginx/sites-available/tasktracker <<EOF
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF'
-
-sudo ln -sf /etc/nginx/sites-available/tasktracker /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo systemctl restart nginx
-
-echo "Встановлення та налаштування завершено успішно!"
+echo "Встановлення успішно завершено!"
