@@ -20,7 +20,8 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # 2. Завантаження найсвіжішого образу (який щойно зібрав CI)
-            docker pull ghcr.io/${{ github.repository }}/tasktracker:stable
+            docker pull ghcr.io/olexandrakk/cssdt-labs/tasktracker:stable
+          Stashed changes
             
             # 3. Перезапуск сервісу (довіряємо управління Docker-контейнером операційній системі)
             sudo systemctl restart tasktracker
