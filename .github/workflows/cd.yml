@@ -16,12 +16,11 @@ jobs:
           # Раннер підключається до Target Node (192.168.0.112)
           ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             
-            # 1. Авторизація в GitHub Packages (щоб мати право скачати твій приватний образ)
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # 1. Авторизація в GitHub Packages (з правами адміністратора)
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # 2. Завантаження найсвіжішого образу (який щойно зібрав CI)
-            docker pull ghcr.io/olexandrakk/cssdt-labs/tasktracker:stable
-          Stashed changes
+            sudo docker pull ghcr.io/olexandrakk/cssdt-labs/tasktracker:stable
             
             # 3. Перезапуск сервісу (довіряємо управління Docker-контейнером операційній системі)
             sudo systemctl restart tasktracker
