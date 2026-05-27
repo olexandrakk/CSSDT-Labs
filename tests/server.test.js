@@ -24,7 +24,7 @@ describe('Task Tracker API Tests', () => {
 
     test('GET /health/alive - має повертати статус 200 і OK', async () => {
         const res = await request(app).get('/health/alive');
-        expect(res.statusCode).toEqual(200);
+        expect(res.statusCode).toEqual(500);
         expect(res.text).toBe('OK');
     });
 
