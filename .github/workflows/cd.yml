@@ -1,0 +1,40 @@
+name: CD Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*' 
+      
+jobs:
+  deploy:
+    name: Deploy and Verify
+    runs-on: self-hosted
+    
+    steps:
+      - name: Deploy application via SSH
+        run: |
+          # Раннер підключається до Target Node (192.168.0.112)
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            
+            # 1. Авторизація в GitHub Packages (щоб мати право скачати твій приватний образ)
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # 2. Завантаження найсвіжішого образу (який щойно зібрав CI)
+            docker pull ghcr.io/${{ github.repository }}/tasktracker:stable
+            
+            # 3. Перезапуск сервісу (довіряємо управління Docker-контейнером операційній системі)
+            sudo systemctl restart tasktracker
+          EOF
+
+      - name: Verify Deployment (Health Check)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            # Даємо контейнеру 5 секунд на повний запуск
+            sleep 5
+            
+            # Перевіряємо, чи systemd бачить сервіс як активний
+            systemctl is-active --quiet tasktracker && echo "✅ Systemd service is running" || (echo "❌ Service failed" && exit 1)
+            
+            # Перевіряємо доступність самого API
+            curl -f http://localhost:8080/ || (echo "❌ API is not responding" && exit 1)
+          EOF
