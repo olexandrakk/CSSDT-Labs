@@ -36,5 +36,5 @@ jobs:
             systemctl is-active --quiet tasktracker && echo "✅ Systemd service is running" || (echo "❌ Service failed" && exit 1)
             
             # Перевіряємо доступність самого API
-            curl -f http://localhost:8080/ || (echo "❌ API is not responding" && exit 1)
+            curl -f http://localhost:3000/ || (echo "❌ API is not responding" && exit 1)
           EOF
