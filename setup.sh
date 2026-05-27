@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 echo "=== Починаємо автоматичне розгортання Task Tracker ==="

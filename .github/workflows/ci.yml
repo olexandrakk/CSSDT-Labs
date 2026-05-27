@@ -15,6 +15,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Run Shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './'
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,11 +35,6 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-
-      - name: Run Shellcheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: './'
 
   test:
     name: Automated Tests
