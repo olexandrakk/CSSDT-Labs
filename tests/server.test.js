@@ -73,4 +73,35 @@ describe('Task Tracker API Tests', () => {
         expect(res.statusCode).toEqual(200);
         expect(res.body).toEqual(updatedTask);
     });
+
+    test('GET / - має повертати HTML сторінку', async () => {
+        const res = await request(app).get('/').set('Accept', 'text/html');
+        expect(res.statusCode).toEqual(200);
+        expect(res.text).toContain('Task Tracker API');
+    });
+
+    test('GET / - має повертати 406 Not Acceptable для JSON', async () => {
+        const res = await request(app).get('/').set('Accept', 'application/json');
+        expect(res.statusCode).toEqual(406);
+    });
+
+    test('POST /tasks - має повертати 400, якщо немає title', async () => {
+        const res = await request(app).post('/tasks').send({});
+        expect(res.statusCode).toEqual(400);
+        expect(res.text).toBe('Поле title є обов\'язковим');
+    });
+
+    test('POST /tasks/:id/done - має повертати 404, якщо задачу не знайдено', async () => {
+        pool.query.mockResolvedValueOnce({ rowCount: 0 });
+        const res = await request(app).post('/tasks/999/done');
+        expect(res.statusCode).toEqual(404);
+        expect(res.text).toBe('Задачу не знайдено');
+    });
+
+    test('GET /tasks - має повертати 500 при помилці БД', async () => {
+        pool.query.mockRejectedValueOnce(new Error('DB Crash'));
+        const res = await request(app).get('/tasks');
+        expect(res.statusCode).toEqual(500);
+        expect(res.text).toBe('DB Crash');
+    });
 });
