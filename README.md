@@ -103,6 +103,8 @@ sudo systemctl status mywebapp.service
 # Спроба оновити пакети (буде відхилено системою безпеки)
 sudo apt update
 
+```
+
 ---
 
 ### 5. Додаткова документація
