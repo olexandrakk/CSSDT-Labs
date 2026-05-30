@@ -1,0 +1,34 @@
+---
+- name: Install PostgreSQL and dependencies
+  ansible.builtin.apt:
+    name: 
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+
+- name: Ensure PostgreSQL is running and enabled
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Allow SSH traffic
+  community.general.ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Allow PostgreSQL traffic ONLY from worker node
+  community.general.ufw:
+    rule: allow
+    port: '5432'
+    proto: tcp
+    src: '192.168.56.150'
+
+- name: Enable UFW and deny all other incoming traffic by default
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming

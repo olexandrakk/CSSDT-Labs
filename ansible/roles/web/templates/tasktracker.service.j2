@@ -1,0 +1,14 @@
+[Unit]
+Description=Task Tracker Node.js App
+After=network.target
+
+[Service]
+Type=simple
+User=operator
+WorkingDirectory=/opt/tasktracker
+EnvironmentFile=/opt/tasktracker/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

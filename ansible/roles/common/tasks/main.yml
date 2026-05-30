@@ -1,0 +1,21 @@
+---
+- name: Create teacher user
+  ansible.builtin.user:
+    name: teacher
+    password: "{{ '12345678' | password_hash('sha512') }}"
+    groups: sudo
+    append: yes
+    shell: /bin/bash
+    state: present
+
+- name: Ensure student directory exists
+  ansible.builtin.file:
+    path: /home/student
+    state: directory
+    mode: '0755'
+
+- name: Create gradebook file with variant number
+  ansible.builtin.copy:
+    dest: /home/student/gradebook
+    content: "7\n"
+    mode: '0644'

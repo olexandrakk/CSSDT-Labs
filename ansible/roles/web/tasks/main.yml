@@ -1,0 +1,70 @@
+---
+- name: Install Node.js and npm
+  ansible.builtin.apt:
+    name:
+      - nodejs
+      - npm
+    state: present
+    update_cache: yes
+
+- name: Create operator system user
+  ansible.builtin.user:
+    name: operator
+    password: "{{ '12345678' | password_hash('sha512') }}"
+    system: yes
+    shell: /bin/bash
+    state: present
+
+- name: Configure restricted sudo for operator
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/operator
+    content: |
+      operator ALL=(ALL) NOPASSWD: /bin/systemctl start tasktracker, /bin/systemctl stop tasktracker, /bin/systemctl restart tasktracker, /bin/systemctl status tasktracker, /bin/systemctl reload nginx
+    validate: /usr/sbin/visudo -cf %s
+    mode: '0440'
+
+- name: Ensure app directory exists
+  ansible.builtin.file:
+    path: /opt/tasktracker
+    state: directory
+    owner: operator
+    group: operator
+    mode: '0755'
+
+- name: Copy application code to server
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../"
+    dest: /opt/tasktracker/
+    owner: operator
+    group: operator
+    exclude:
+      - "terraform"
+      - "ansible"
+      - ".git"
+
+- name: Install npm dependencies
+  community.general.npm:
+    path: /opt/tasktracker
+  become_user: operator
+
+- name: Generate .env configuration file
+  ansible.builtin.template:
+    src: .env.j2
+    dest: /opt/tasktracker/.env
+    owner: operator
+    group: operator
+    mode: '0600'
+
+- name: Create systemd service for Task Tracker
+  ansible.builtin.template:
+    src: tasktracker.service.j2
+    dest: /etc/systemd/system/tasktracker.service
+    mode: '0644'
+  notify: restart tasktracker
+
+- name: Ensure Task Tracker is running and enabled
+  ansible.builtin.systemd:
+    name: tasktracker
+    state: started
+    enabled: yes
+    daemon_reload: yes
