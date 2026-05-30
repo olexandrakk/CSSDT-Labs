@@ -1,0 +1,5 @@
+---
+- name: restart tasktracker
+  ansible.builtin.systemd:
+    name: tasktracker
+    state: restarted
