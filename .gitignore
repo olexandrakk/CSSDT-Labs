@@ -9,3 +9,15 @@ Thumbs.db
 
 actions-runner/
 coverage/
+
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+*.box
+*.qcow2
+*.qcow2.meta
+noble-server-cloudimg-*
+
+*-init.cfg
+cloud_init.cfg
